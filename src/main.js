@@ -14,6 +14,8 @@ let currentQuery = '';
 let currentPage = 1;
 let totalHits = 0;
 let lightbox = new SimpleLightbox('.gallery a');
+let isLoading = false;
+let hasMoreImages = true;
 
 function showLoader() {
   loader.style.display = 'block';
@@ -39,6 +41,7 @@ async function searchImages(query) {
   currentQuery = query;
   currentPage = 1;
   totalHits = 0;
+  hasMoreImages = true;
   clearGallery();
   hideLoadMoreButton();
   showLoader();
@@ -71,6 +74,9 @@ async function searchImages(query) {
 }
 
 async function loadMoreImages() {
+  if (isLoading || !hasMoreImages) return;
+
+  isLoading = true;
   currentPage += 1;
   showLoader();
 
@@ -82,6 +88,7 @@ async function loadMoreImages() {
         title: 'Info',
         message: "You've reached the end of the results.",
       });
+      hasMoreImages = false;
       hideLoadMoreButton();
     } else {
       gallery.insertAdjacentHTML('beforeend', renderImageCards(data.hits));
@@ -93,6 +100,7 @@ async function loadMoreImages() {
           title: 'Info',
           message: "We're sorry, but you've reached the end of search results.",
         });
+        hasMoreImages = false;
       }
 
       smoothScroll();
@@ -103,6 +111,7 @@ async function loadMoreImages() {
       message: 'Failed to load more images.',
     });
   } finally {
+    isLoading = false;
     hideLoader();
   }
 }
@@ -120,16 +129,21 @@ searchForm.addEventListener('submit', (e) => {
   }
 });
 
-loadMoreBtn.addEventListener('click', loadMoreImages);
+loadMoreBtn.addEventListener('click', () => {
+  window.removeEventListener('scroll', infiniteScroll);
+  loadMoreImages();
+});
 
-window.addEventListener('scroll', () => {
+window.addEventListener('scroll', infiniteScroll);
+
+function infiniteScroll() {
   if (
     window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 100 &&
-    currentQuery
+    currentQuery && hasMoreImages
   ) {
     loadMoreImages();
   }
-});
+}
 
 function smoothScroll() {
   const cardHeight = gallery.firstElementChild.getBoundingClientRect().height;
